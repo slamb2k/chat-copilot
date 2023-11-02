@@ -1,0 +1,18 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Azure/azure-dev/main/schemas/v1.0/azure.yaml.json
+
+name: copilot-backend
+metadata:
+    template: azd-init@1.4.3
+services:
+    memorypipeline:
+        project: memorypipeline
+        host: containerapp
+        language: dotnet
+    web-searcher:
+        project: plugins\web-searcher
+        host: containerapp
+        language: dotnet
+    webapi:
+        project: webapi
+        host: containerapp
+        language: dotnet

@@ -4,7 +4,7 @@ This directory contains the source code for Chat Copilot's backend web API servi
 
 ## Running the Chat Copilot sample
 
-To configure and run either the full Chat Copilot application or only the backend API, please view the [main instructions](../README.md#instructions).
+To configure and run either the full Chat Copilot application or only the backend API, please view the [main instructions](../README.original.md#instructions).
 
 # (Under Development)
 

@@ -1,367 +1,99 @@
-# Chat Copilot Sample Application
+# Next Steps after `azd init`
 
-This sample allows you to build your own integrated large language model (LLM) chat copilot. The sample is built on Microsoft [Semantic Kernel](https://github.com/microsoft/semantic-kernel) and has three components:
+## Table of Contents
 
-1. A frontend application [React web app](./webapp/)
-2. A backend REST API [.NET web API service](./webapi/)
-3. A [.NET worker service](./memorypipeline/) for processing semantic memory.
+1. [Next Steps](#next-steps)
+2. [What was added](#what-was-added)
+3. [Billing](#billing)
+4. [Troubleshooting](#troubleshooting)
 
-These quick-start instructions run the sample locally. They can also be found on the official Chat Copilot Microsoft Learn documentation page for [getting started](https://learn.microsoft.com/semantic-kernel/chat-copilot/getting-started).
+## Next Steps
 
-To deploy the sample to Azure, please view [Deploying Chat Copilot](./scripts/deploy/README.md) after meeting the [requirements](#requirements) described below.
+### Define environment variables for running services
 
-> **IMPORTANT:** This sample is for educational purposes only and is not recommended for production deployments.
+1. Modify or add environment variables to configure the running application. Environment variables can be configured by updating the `settings` node(s) for each service in [main.parameters.json](./infra/main.parameters.json).
+2. For services using a database, environment variables have been pre-configured under the `env` node in the following files to allow connection to the database. Modify the name of these variables as needed to match your application.
+    - [app/memorypipeline.bicep](./infra/app/memorypipeline.bicep)
+    - [app/web-searcher.bicep](./infra/app/web-searcher.bicep)
+    - [app/webapi.bicep](./infra/app/webapi.bicep)
 
-> **IMPORTANT:** Each chat interaction will call Azure OpenAI/OpenAI which will use tokens that you may be billed for.
+### Provision infrastructure and deploy application code
 
-![Chat Copilot answering a question](https://learn.microsoft.com/en-us/semantic-kernel/media/chat-copilot-in-action.gif)
+Run `azd up` to provision your infrastructure and deploy to Azure in one step (or run `azd provision` then `azd deploy` to accomplish the tasks separately). Visit the service endpoints listed to see your application up-and-running!
 
-# Requirements
+To troubleshoot any issues, see [troubleshooting](#troubleshooting).
 
-You will need the following items to run the sample:
+### Configure CI/CD pipeline
 
-- [.NET 7.0 SDK](https://dotnet.microsoft.com/download/dotnet/7.0) _(via Setup install.\* script)_
-- [Node.js](https://nodejs.org/en/download) _(via Setup install.\* script)_
-- [Yarn](https://classic.yarnpkg.com/docs/install) _(via Setup install.\* script)_
-- AI Service
+1. Create a workflow pipeline file locally. The following starters are available:
+   - [Deploy with GitHub Actions](https://github.com/Azure-Samples/azd-starter-bicep/blob/main/.github/workflows/azure-dev.yml)
+   - [Deploy with Azure Pipelines](https://github.com/Azure-Samples/azd-starter-bicep/blob/main/.azdo/pipelines/azure-dev.yml)
+2. Run `azd pipeline config -e <environment name>` to configure the deployment pipeline to connect securely to Azure. An environment name is specified here to configure the pipeline with a different environment for isolation purposes. Run `azd env list` and `azd env set` to reselect the default environment after this step.
 
-| AI Service   | Requirement                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Azure OpenAI | - [Access](https://aka.ms/oai/access)<br>- [Resource](https://learn.microsoft.com/azure/ai-services/openai/how-to/create-resource?pivots=web-portal#create-a-resource)<br>- [Deployed models](https://learn.microsoft.com/azure/ai-services/openai/how-to/create-resource?pivots=web-portal#deploy-a-model) (`gpt-35-turbo` and `text-embedding-ada-002`) <br>- [Endpoint](https://learn.microsoft.com/azure/ai-services/openai/tutorials/embeddings?tabs=command-line#retrieve-key-and-endpoint)<br>- [API key](https://learn.microsoft.com/azure/ai-services/openai/tutorials/embeddings?tabs=command-line#retrieve-key-and-endpoint) |
-| OpenAI       | - [Account](https://platform.openai.com)<br>- [API key](https://platform.openai.com/account/api-keys)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+## What was added
 
-# Instructions
+### Infrastructure configuration
 
-## Windows
+To describe the infrastructure and application, `azure.yaml` along with Infrastructure as Code files using Bicep were added with the following directory structure:
 
-1. Open PowerShell as an administrator.
-   > NOTE: Ensure that you have [PowerShell Core 6+](https://github.com/PowerShell/PowerShell) installed. This is different from the default PowerShell installed on Windows.
-2. Setup your environment.
+```yaml
+- azure.yaml     # azd project configuration
+- infra/         # Infrastructure as Code (bicep) files
+  - main.bicep   # main deployment module
+  - app/         # Application resource modules
+  - shared/      # Shared resource modules
+  - modules/     # Library modules
+```
 
-   ```powershell
-   cd <path to chat-copilot>\scripts\
-   .\Install.ps1
-   ```
+Each bicep file declares resources to be provisioned. The resources are provisioned when running `azd up` or `azd provision`.
 
-   > NOTE: This script will install `Chocolatey`, `dotnet-7.0-sdk`, `nodejs`, and `yarn`.
+- [app/memorypipeline.bicep](./infra/app/memorypipeline.bicep) - Azure Container Apps resources to host the 'memorypipeline' service.
+- [app/web-searcher.bicep](./infra/app/web-searcher.bicep) - Azure Container Apps resources to host the 'web-searcher' service.
+- [app/webapi.bicep](./infra/app/webapi.bicep) - Azure Container Apps resources to host the 'webapi' service.
+- [shared/keyvault.bicep](./infra/shared/keyvault.bicep) - Azure KeyVault to store secrets.
+- [shared/monitoring.bicep](./infra/shared/monitoring.bicep) - Azure Log Analytics workspace and Application Insights to log and store instrumentation logs.
+- [shared/registry.bicep](./infra/shared/registry.bicep) - Azure Container Registry to store docker images.
 
-   > NOTE: If you receive an error that the script is not digitally signed or cannot execute on the system, you may need to [change the execution policy](https://learn.microsoft.com/powershell/module/microsoft.powershell.core/about/about_execution_policies?view=powershell-7.3#change-the-execution-policy) (see list of [policies](https://learn.microsoft.com/powershell/module/microsoft.powershell.core/about/about_execution_policies?view=powershell-7.3#powershell-execution-policies) and [scopes](https://learn.microsoft.com/powershell/module/microsoft.powershell.core/about/about_execution_policies?view=powershell-7.3#execution-policy-scope)) or [unblock the script](https://learn.microsoft.com/powershell/module/microsoft.powershell.security/get-executionpolicy?view=powershell-7.3#example-4-unblock-a-script-to-run-it-without-changing-the-execution-policy).
+More information about [Bicep](https://aka.ms/bicep) language.
 
-3. Configure Chat Copilot.
+### Build from source (no Dockerfile)
 
-   ```powershell
-   .\Configure.ps1 -AIService {AI_SERVICE} -APIKey {API_KEY} -Endpoint {AZURE_OPENAI_ENDPOINT}
-   ```
+*Note: Build from source is currently experimental. We recommend authoring a Dockerfile for a static front-end service.*
 
-   - `AI_SERVICE`: `AzureOpenAI` or `OpenAI`.
-   - `API_KEY`: The `API key` for Azure OpenAI or for OpenAI.
-   - `AZURE_OPENAI_ENDPOINT`: The Azure OpenAI resource `Endpoint` address. Omit `-Endpoint` if using OpenAI.
+#### Build with Buildpacks using Oryx
 
-   - > **IMPORTANT:** For `AzureOpenAI`, if you deployed models `gpt-35-turbo` and `text-embedding-ada-002` with custom names (instead of each own's given name), also use the parameters:
+If your project does not contain a Dockerfile, we will use [Buildpacks](https://buildpacks.io/) using [Oryx](https://github.com/microsoft/Oryx/blob/main/doc/README.md) to create an image for the services in `azure.yaml` and get your containerized app onto Azure.
 
-     ```powershell
-     -CompletionModel {DEPLOYMENT_NAME} -EmbeddingModel {DEPLOYMENT_NAME} -PlannerModel {DEPLOYMENT_NAME}
-     ```
+To produce and run the docker image locally:
 
-4. Run Chat Copilot locally. This step starts both the backend API and frontend application.
+1. Run `azd package` to build the image.
+2. Copy the *Image Tag* shown.
+3. Run `docker run -it <Image Tag>` to run the image locally.
 
-   ```powershell
-   .\Start.ps1
-   ```
+#### Exposed port
 
-   It may take a few minutes for Yarn packages to install on the first run.
+Oryx will automatically set `PORT` to a default value of `80` or `8080` depending on the language. Additionally, it will auto-configure supported web servers such as `gunicorn` and `ASP .NET Core` to listen to the target `PORT`. If your application already listens to the port specified by the `PORT` variable, the application will work out-of-the-box. Otherwise, you may need to perform one of the steps below:
 
-   > NOTE: Confirm pop-ups are not blocked and you are logged in with the same account used to register the application.
+1. Update your application code or configuration to listen to the port specified by the `PORT` variable
+1. (Alternatively) Search for `targetPort` in a .bicep file under the `infra/app` folder, and update the variable to match the port used by the application.
 
-   - (Optional) To start ONLY the backend:
+## Billing
 
-     ```powershell
-     .\Start-Backend.ps1
-     ```
+Visit the *Cost Management + Billing* page in Azure Portal to track current spend. For more information about how you're billed, and how you can monitor the costs incurred in your Azure subscriptions, visit [billing overview](https://learn.microsoft.com/en-us/azure/developer/intro/azure-developer-billing).
 
-## Linux/macOS
+## Troubleshooting
 
-1. Open Bash as an administrator.
-2. Configure environment.
+Q: I visited the service endpoint listed, and I'm seeing a blank or error page.
 
-   ```bash
-   cd <path to chat-copilot>/scripts/
-   ```
+A: Your service may have failed to start or misconfigured. To investigate further:
 
-   **Ubuntu/Debian Linux**
+1. Click on the resource group link shown to visit Azure Portal.
+2. Navigate to the specific Azure Container App resource for the service.
+3. Select *Monitoring -> Log stream* under the navigation pane.
+4. Observe the log output to identify any errors.
+5. If there are no errors, ensure that the ingress target port matches the port that your service listens on:
+    1. Under *Settings -> Ingress*, ensure the *Target port* matches the desired port.
+    2. After modifying this setting, also update the `targetPort` setting in the .bicep file for the service under `infra/app`.
+6. If logs are written to disk, examine the local logs or debug the application by using the *Console* to connect to a shell within the running container.
 
-   ```bash
-   ./install-apt.sh
-   ```
-
-   > NOTE: This script uses `apt` to install `dotnet-sdk-7.0`, `nodejs`, and `yarn`.
-
-   **macOS**
-
-   ```bash
-   ./install-brew.sh
-   ```
-
-   > NOTE: This script uses `homebrew` to install `dotnet-sdk`, `nodejs`, and `yarn`.
-
-3. Configure Chat Copilot.
-
-   1. For OpenAI
-
-      ```bash
-      ./configure.sh --aiservice OpenAI --apikey {API_KEY}
-      ```
-
-      - `API_KEY`: The `API key` for OpenAI.
-
-   2. For Azure OpenAI
-
-      ```bash
-      ./configure.sh --aiservice AzureOpenAI \
-                     --endpoint {AZURE_OPENAI_ENDPOINT} \
-                     --apikey   {API_KEY}
-      ```
-
-      - `AZURE_OPENAI_ENDPOINT`: The Azure OpenAI resource `Endpoint` address.
-      - `API_KEY`: The `API key` for Azure OpenAI.
-
-      **IMPORTANT:** If you deployed models `gpt-35-turbo` and `text-embedding-ada-002`
-      with custom names (instead of each own's given name), you need to specify
-      the deployment names with three additional parameters:
-
-      ```bash
-      ./configure.sh --aiservice AzureOpenAI \
-                     --endpoint        {AZURE_OPENAI_ENDPOINT} \
-                     --apikey          {API_KEY} \
-                     --completionmodel {DEPLOYMENT_NAME} \
-                     --plannermodel    {DEPLOYMENT_NAME} \
-                     --embeddingmodel  {DEPLOYMENT_NAME}
-      ```
-
-4. Run Chat Copilot locally. This step starts both the backend API and frontend application.
-
-   ```bash
-   ./start.sh
-   ```
-
-   It may take a few minutes for Yarn packages to install on the first run.
-
-   > NOTE: Confirm pop-ups are not blocked and you are logged in with the same account used to register the application.
-
-   - (Optional) To start ONLY the backend:
-
-     ```powershell
-     ./start-backend.sh
-     ```
-
-## (Optional) Run the [memory pipeline](./memorypipeline/README.md)
-
-By default, the webapi is configured to work without the memory pipeline for synchronous processing documents. To enable asynchronous document processing, you need to configure the webapi and the memory pipeline. Please refer to the [webapi README](./webapi/README.md) and the [memory pipeline README](./memorypipeline/README.md) for more information.
-
-## (Optional) Enable backend authentication via Azure AD
-
-By default, Chat Copilot runs locally without authentication, using a guest user profile. If you want to enable authentication with Azure Active Directory, follow the steps below.
-
-### Requirements
-
-- [Azure account](https://azure.microsoft.com/free)
-- [Azure AD Tenant](https://learn.microsoft.com/azure/active-directory/develop/quickstart-create-new-tenant)
-
-### Instructions
-
-1. Create an [application registration](https://learn.microsoft.com/azure/active-directory/develop/quickstart-register-app) for the frontend web app, using the values below
-
-   - `Supported account types`: "_Accounts in this organizational directory only ({YOUR TENANT} only - Single tenant)_"
-   - `Redirect URI (optional)`: _Single-page application (SPA)_ and use _http://localhost:3000_.
-
-2. Create a second [application registration](https://learn.microsoft.com/azure/active-directory/develop/quickstart-register-app) for the backend web api, using the values below:
-   - `Supported account types`: "_Accounts in this organizational directory only ({YOUR TENANT} only - Single tenant)_"
-   - Do **not** configure a `Redirect URI (optional)`
-
-> NOTE: Other account types can be used to allow multitenant and personal Microsoft accounts to use your application if you desire. Doing so may result in more users and therefore higher costs.
-
-> Take note of the `Application (client) ID` for both app registrations as you will need them in future steps.
-
-3. Expose an API within the second app registration
-
-   1. Select _Expose an API_ from the menu
-
-   2. Add an _Application ID URI_
-
-      1. This will generate an `api://` URI
-
-      2. Click _Save_ to store the generated URI
-
-   3. Add a scope for `access_as_user`
-
-      1. Click _Add scope_
-
-      2. Set _Scope name_ to `access_as_user`
-
-      3. Set _Who can consent_ to _Admins and users_
-
-      4. Set _Admin consent display name_ and _User consent display name_ to `Access copilot chat as a user`
-
-      5. Set _Admin consent description_ and _User consent description_ to `Allows the accesses to the Copilot chat web API as a user`
-
-   4. Add the web app frontend as an authorized client application
-
-      1. Click _Add a client application_
-
-      2. For _Client ID_, enter the frontend's application (client) ID
-
-      3. Check the checkbox under _Authorized scopes_
-
-      4. Click _Add application_
-
-4. Add permissions to web app frontend to access web api as user
-
-   1. Open app registration for web app frontend
-
-   2. Go to _API Permissions_
-
-   3. Click _Add a permission_
-
-   4. Select the tab _APIs my organization uses_
-
-   5. Choose the app registration representing the web api backend
-
-   6. Select permissions `access_as_user`
-
-   7. Click _Add permissions_
-
-5. Run the Configure script with additional parameters to set up authentication.
-
-   **Powershell**
-
-   ```powershell
-   .\Configure.ps1 -AiService {AI_SERVICE} -APIKey {API_KEY} -Endpoint {AZURE_OPENAI_ENDPOINT} -FrontendClientId {FRONTEND_APPLICATION_ID} -BackendClientId {BACKEND_APPLICATION_ID} -TenantId {TENANT_ID} -Instance {AZURE_AD_INSTANCE}
-   ```
-
-   **Bash**
-
-   ```bash
-   ./configure.sh --aiservice {AI_SERVICE} --apikey {API_KEY} --endpoint {AZURE_OPENAI_ENDPOINT} --frontend-clientid {FRONTEND_APPLICATION_ID} --backend-clientid {BACKEND_APPLICATION_ID} --tenantid {TENANT_ID} --instance {AZURE_AD_INSTANCE}
-   ```
-
-   - `AI_SERVICE`: `AzureOpenAI` or `OpenAI`.
-   - `API_KEY`: The `API key` for Azure OpenAI or for OpenAI.
-   - `AZURE_OPENAI_ENDPOINT`: The Azure OpenAI resource `Endpoint` address. Omit `-Endpoint` if using OpenAI.
-   - `FRONTEND_APPLICATION_ID`: The `Application (client) ID` associated with the application registration for the frontend.
-   - `BACKEND_APPLICATION_ID`: The `Application (client) ID` associated with the application registration for the backend.
-   - `TENANT_ID` : Your Azure AD tenant ID
-   - `AZURE_AD_INSTANCE` _(optional)_: The Azure AD cloud instance for the authenticating users. Defaults to `https://login.microsoftonline.com`.
-
-6. Run Chat Copilot locally. This step starts both the backend API and frontend application.
-
-   **Powershell**
-
-   ```powershell
-   .\Start.ps1
-   ```
-
-   **Bash**
-
-   ```bash
-   ./start.sh
-   ```
-
-# Troubleshooting
-
-1. **_Issue:_** Unable to load chats.
-
-   _Details_: interaction*in_progress: Interaction is currently in progress.*
-
-   _Explanation_: The WebApp can display this error when the application is configured for a different AAD tenant from the browser, (e.g., personal/MSA account vs work/school account).
-
-   _Solution_: Either use a private/incognito browser tab or clear your browser credentials/cookies. Confirm you are logged in with the same account used to register the application.
-
-2. **_Issue:_**: Challenges using text completion models, such as `text-davinci-003`
-
-   _Solution_: For OpenAI, see [model endpoint compatibility](https://platform.openai.com/docs/models/model-endpoint-compatibility) for
-   the complete list of current models supporting chat completions. For Azure OpenAI, see [model summary table and region availability](https://learn.microsoft.com/azure/ai-services/openai/concepts/models#model-summary-table-and-region-availability).
-
-3. **_Issue:_** Localhost SSL certificate errors / CORS errors
-
-   ![Cert-Issue](https://github.com/microsoft/chat-copilot/assets/64985898/e9072af1-e43c-472d-bebc-d0082d0c9180)
-
-   _Explanation_: Your browser may be blocking the frontend access to the backend while waiting for your permission to connect.
-
-   _Solution_:
-
-   1. Confirm the backend service is running. Open a web browser and navigate to `https://localhost:40443/healthz`
-      - You should see a confirmation message: `Healthy`
-      - If your browser asks you to acknowledge the risks of visiting an insecure website, you must acknowledge this before the frontend can connect to the backend server.
-   2. Navigate to `http://localhost:3000` or refresh the page to use the Chat Copilot application.
-
-4. **_Issue:_** Yarn is not working.
-
-   _Explanation_: You may have the wrong Yarn version installed such as v2.x+.
-
-   _Solution_: Use the classic version.
-
-   ```bash
-   npm install -g yarn
-   yarn set version classic
-   ```
-
-5. **_Issue:_** Missing `/usr/share/dotnet/host/fxr` folder.
-
-   _Details_: "A fatal error occurred. The folder [/usr/share/dotnet/host/fxr] does not exist" when running dotnet commands on Linux.
-
-   _Explanation_: When .NET (Core) was first released for Linux, it was not yet available in the official Ubuntu repo. So instead, many of us added the Microsoft APT repo in order to install it. Now, the packages are part of the Ubuntu repo, and they are conflicting with the Microsoft packages. This error is a result of mixed packages. ([Source: StackOverflow](https://stackoverflow.com/questions/73753672/a-fatal-error-occurred-the-folder-usr-share-dotnet-host-fxr-does-not-exist))
-
-   _Solution_:
-
-   ```bash
-   # Remove all existing packages to get to a clean state:
-   sudo apt remove --assume-yes dotnet*;
-   sudo apt remove --assume-yes aspnetcore*;
-   sudo apt remove --assume-yes netstandard*;
-
-   # Set the Microsoft package provider priority
-   echo -e "Package: *\nPin: origin \"packages.microsoft.com\"\nPin-Priority: 1001" | sudo tee /etc/apt/preferences.d/99microsoft-dotnet.pref;
-
-   # Update and install dotnet
-   sudo apt update;
-   sudo apt install --assume-yes dotnet-sdk-7.0;
-   ```
-
-# Check out our other repos!
-
-If you would like to learn more about Semantic Kernel and AI, you may also be interested in other repos the Semantic Kernel team supports:
-
-| Repo                                                                              | Description                                                                                      |
-| --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| [Semantic Kernel](https://github.com/microsoft/semantic-kernel)                   | A lightweight SDK that integrates cutting-edge LLM technology quickly and easily into your apps. |
-| [Semantic Kernel Docs](https://github.com/MicrosoftDocs/semantic-kernel-docs)     | The home for Semantic Kernel documentation that appears on the Microsoft learn site.             |
-| [Semantic Kernel Starters](https://github.com/microsoft/semantic-kernel-starters) | Starter projects for Semantic Kernel to make it easier to get started.                           |
-| [Semantic Memory](https://github.com/microsoft/semantic-memory)                   | A service that allows you to create pipelines for ingesting, storing, and querying knowledge.    |
-
-## Join the community
-
-We welcome your contributions and suggestions to the Chat Copilot Sample App! One of the easiest
-ways to participate is to engage in discussions in the GitHub repository.
-Bug reports and fixes are welcome!
-
-To learn more and get started:
-
-- Read the [documentation](https://learn.microsoft.com/semantic-kernel/chat-copilot/)
-- Join the [Discord community](https://aka.ms/SKDiscord)
-- [Contribute](CONTRIBUTING.md) to the project
-- Follow the team on our [blog](https://aka.ms/sk/blog)
-
-## Code of Conduct
-
-This project has adopted the
-[Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/).
-For more information see the
-[Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/)
-or contact [opencode@microsoft.com](mailto:opencode@microsoft.com)
-with any additional questions or comments.
-
-## License
-
-Copyright (c) Microsoft Corporation. All rights reserved.
-
-Licensed under the [MIT](LICENSE) license.
+For additional information about setting up your `azd` project, visit our official [docs](https://learn.microsoft.com/en-us/azure/developer/azure-developer-cli/make-azd-compatible?pivots=azd-convert).
